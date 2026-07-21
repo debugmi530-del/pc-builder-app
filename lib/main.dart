@@ -8,6 +8,7 @@ import 'screens/category_screen.dart';
 import 'screens/component_detail_screen.dart';
 import 'screens/builder_screen.dart';
 import 'screens/comparison_screen.dart';
+import 'screens/build_comparison_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/builds_screen.dart';
 import 'theme.dart';
@@ -42,7 +43,6 @@ class PcBuilderApp extends StatelessWidget {
   }
 }
 
-// Navigation shell with bottom bar
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 final _router = GoRouter(
@@ -89,6 +89,13 @@ final _router = GoRouter(
       path: '/compare',
       builder: (context, state) => const ComparisonScreen(),
     ),
+    GoRoute(
+      path: '/compare-builds',
+      builder: (context, state) => BuildComparisonScreen(
+        buildId1: state.uri.queryParameters['id1'] ?? '',
+        buildId2: state.uri.queryParameters['id2'] ?? '',
+      ),
+    ),
   ],
 );
 
@@ -111,63 +118,66 @@ class _MainShell extends StatelessWidget {
     final buildCount = provider.currentBuild.components.length;
     final compareCount = provider.compareComponents.length;
 
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: SizedBox(
-            height: 62,
-            child: Row(
-              children: [
-                _NavItem(
-                  icon: Icons.grid_view_rounded,
-                  label: 'Каталог',
-                  selected: selectedIndex == 0,
-                  onTap: () => context.go('/'),
-                ),
-                _NavItem(
-                  icon: Icons.build_rounded,
-                  label: 'Сборка',
-                  selected: selectedIndex == 1,
-                  badge: buildCount > 0 ? buildCount.toString() : null,
-                  onTap: () => context.go('/builder'),
-                ),
-                _NavItem(
-                  icon: Icons.search_rounded,
-                  label: 'Поиск',
-                  selected: selectedIndex == 2,
-                  onTap: () => context.go('/search'),
-                ),
-                _NavItem(
-                  icon: Icons.bookmark_rounded,
-                  label: 'Сборки',
-                  selected: selectedIndex == 3,
-                  badge: provider.savedBuilds.isNotEmpty
-                      ? provider.savedBuilds.length.toString()
-                      : null,
-                  onTap: () => context.go('/builds'),
-                ),
-                // Compare shortcut
-                if (compareCount > 0)
+    // PopScope предотвращает выход из приложения кнопкой/жестом назад
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        body: child,
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: SizedBox(
+              height: 62,
+              child: Row(
+                children: [
                   _NavItem(
-                    icon: Icons.compare_arrows_rounded,
-                    label: 'Сравнить',
-                    selected: false,
-                    badge: compareCount.toString(),
-                    onTap: () => context.push('/compare'),
-                    color: AppTheme.accent,
+                    icon: Icons.grid_view_rounded,
+                    label: 'Каталог',
+                    selected: selectedIndex == 0,
+                    onTap: () => context.go('/'),
                   ),
-              ],
+                  _NavItem(
+                    icon: Icons.build_rounded,
+                    label: 'Сборка',
+                    selected: selectedIndex == 1,
+                    badge: buildCount > 0 ? buildCount.toString() : null,
+                    onTap: () => context.go('/builder'),
+                  ),
+                  _NavItem(
+                    icon: Icons.search_rounded,
+                    label: 'Поиск',
+                    selected: selectedIndex == 2,
+                    onTap: () => context.go('/search'),
+                  ),
+                  _NavItem(
+                    icon: Icons.bookmark_rounded,
+                    label: 'Сборки',
+                    selected: selectedIndex == 3,
+                    badge: provider.savedBuilds.isNotEmpty
+                        ? provider.savedBuilds.length.toString()
+                        : null,
+                    onTap: () => context.go('/builds'),
+                  ),
+                  if (compareCount > 0)
+                    _NavItem(
+                      icon: Icons.compare_arrows_rounded,
+                      label: 'Сравнить',
+                      selected: false,
+                      badge: compareCount.toString(),
+                      onTap: () => context.push('/compare'),
+                      color: AppTheme.accent,
+                    ),
+                ],
+              ),
             ),
           ),
         ),

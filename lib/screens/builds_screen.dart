@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../models/component.dart';
+import '../models/pc_build.dart';
 import '../providers/app_provider.dart';
 import '../theme.dart';
 
@@ -22,7 +23,7 @@ class BuildsScreen extends StatelessWidget {
             TextButton.icon(
               icon: const Icon(Icons.compare_arrows, color: Colors.white, size: 18),
               label: const Text('Сравнить', style: TextStyle(color: Colors.white)),
-              onPressed: () => _showCompareBuildPicker(context, provider, builds),
+              onPressed: () => _showCompareBuildPicker(context, builds),
             ),
         ],
       ),
@@ -58,11 +59,11 @@ class BuildsScreen extends StatelessWidget {
               itemBuilder: (ctx, i) => _BuildCard(
                 pcBuild: builds[i],
                 onLoad: () {
-                  provider.loadSavedBuild(builds[i]);
+                  context.read<AppProvider>().loadSavedBuild(builds[i]);
                   context.go('/builder');
                 },
                 onDelete: () {
-                  provider.deleteSavedBuild(builds[i].id);
+                  context.read<AppProvider>().deleteSavedBuild(builds[i].id);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Сборка удалена')),
                   );
@@ -72,49 +73,91 @@ class BuildsScreen extends StatelessWidget {
     );
   }
 
-  void _showCompareBuildPicker(
-      BuildContext context, AppProvider provider, builds) {
-    String? firstId;
+  void _showCompareBuildPicker(BuildContext context, List<PcBuild> builds) {
+    final selectedIds = <String>[];
+
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
-          title: const Text('Выберите сборки для сравнения'),
+          title: const Text('Выберите 2 сборки'),
           content: SizedBox(
             width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: builds.length,
-              itemBuilder: (_, i) {
-                final b = builds[i];
-                final isSelected = firstId == b.id;
-                return CheckboxListTile(
-                  title: Text(b.name),
-                  subtitle: Text(
-                      '${b.components.length} компонентов · ${_fmt(b.totalPrice)} ₽'),
-                  value: isSelected,
-                  onChanged: (v) {
-                    setState(() {
-                      firstId = v == true ? b.id : null;
-                    });
-                  },
-                );
-              },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Выберите ровно 2 сборки для сравнения',
+                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 340),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: builds.length,
+                    itemBuilder: (_, i) {
+                      final b = builds[i];
+                      final isSelected = selectedIds.contains(b.id);
+                      final isDisabled =
+                          selectedIds.length >= 2 && !isSelected;
+                      return CheckboxListTile(
+                        dense: true,
+                        title: Text(
+                          b.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDisabled
+                                ? AppTheme.textSecondary
+                                : AppTheme.textPrimary,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${b.components.length} компонентов · ${_fmt(b.totalPrice)} ₽',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        value: isSelected,
+                        activeColor: AppTheme.primary,
+                        onChanged: isDisabled
+                            ? null
+                            : (v) {
+                                setState(() {
+                                  if (v == true) {
+                                    selectedIds.add(b.id);
+                                  } else {
+                                    selectedIds.remove(b.id);
+                                  }
+                                });
+                              },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Отмена'),
             ),
             ElevatedButton(
-              onPressed: firstId == null
-                  ? null
-                  : () {
-                      Navigator.pop(context);
-                      context.push('/compare-builds?id=$firstId');
-                    },
-              child: const Text('Сравнить'),
+              onPressed: selectedIds.length == 2
+                  ? () {
+                      Navigator.pop(ctx);
+                      context.push(
+                        '/compare-builds?id1=${selectedIds[0]}&id2=${selectedIds[1]}',
+                      );
+                    }
+                  : null,
+              child: Text(
+                selectedIds.isEmpty
+                    ? 'Выберите 2'
+                    : selectedIds.length == 1
+                        ? 'Ещё одну'
+                        : 'Сравнить',
+              ),
             ),
           ],
         ),
@@ -129,7 +172,7 @@ class BuildsScreen extends StatelessWidget {
 }
 
 class _BuildCard extends StatelessWidget {
-  final dynamic pcBuild;
+  final PcBuild pcBuild;
   final VoidCallback onLoad;
   final VoidCallback onDelete;
 
@@ -191,15 +234,14 @@ class _BuildCard extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: categories.map((cat) {
-                final comp = pcBuild.components[cat];
+                final comp = pcBuild.components[cat]!;
                 return Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: cat.color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
-                    border:
-                        Border.all(color: cat.color.withOpacity(0.3)),
+                    border: Border.all(color: cat.color.withOpacity(0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -221,7 +263,6 @@ class _BuildCard extends StatelessWidget {
             ),
           ),
 
-          // Missing components
           if (!pcBuild.isComplete)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),

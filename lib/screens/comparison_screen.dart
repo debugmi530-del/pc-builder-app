@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../models/component.dart';
-import '../data/components.dart';
 import '../providers/app_provider.dart';
 import '../theme.dart';
 
@@ -120,31 +119,33 @@ class ComparisonScreen extends StatelessWidget {
                               color: AppTheme.accent,
                             ),
                           ),
-                          // Swap button
-                          GestureDetector(
-                            onTap: () => _showSwapDialog(context, provider, i),
-                            child: Container(
-                              margin: const EdgeInsets.only(top: 6),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppTheme.chip,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.swap_horiz,
-                                      size: 12, color: AppTheme.primary),
-                                  SizedBox(width: 3),
-                                  Text('Заменить',
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppTheme.primary)),
-                                ],
+                          // Swap button — показывает только те, что уже в сравнении
+                          if (items.length > 1)
+                            GestureDetector(
+                              onTap: () =>
+                                  _showSwapDialog(context, provider, i),
+                              child: Container(
+                                margin: const EdgeInsets.only(top: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.chip,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.swap_horiz,
+                                        size: 12, color: AppTheme.primary),
+                                    SizedBox(width: 3),
+                                    Text('Заменить',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: AppTheme.primary)),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
                           // Remove button
                           GestureDetector(
                             onTap: () => provider.removeFromCompare(c.id),
@@ -271,35 +272,68 @@ class ComparisonScreen extends StatelessWidget {
     );
   }
 
+  /// Показывает только те комплектующие, которые уже добавлены в сравнение
   void _showSwapDialog(
       BuildContext context, AppProvider provider, int index) {
-    final current = provider.compareComponents[index];
-    final sameCategory = allComponents
-        .where((c) => c.category == current.category && c.id != current.id)
+    final others = provider.compareComponents
+        .asMap()
+        .entries
+        .where((e) => e.key != index)
         .toList();
 
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (_) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Container(
+            margin: const EdgeInsets.only(top: 10),
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppTheme.divider,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Text('Выберите замену',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          ),
-          ...sameCategory.map(
-            (c) => ListTile(
-              leading: Icon(c.category.icon, color: c.category.color),
-              title: Text(c.name, style: const TextStyle(fontSize: 14)),
-              subtitle: Text('${_fmt(c.price)} ₽',
-                  style: const TextStyle(color: AppTheme.accent)),
-              onTap: () {
-                provider.swapCompare(index, c);
-                Navigator.pop(context);
-              },
+            child: Text(
+              'Поменять местами с:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
+          ),
+          ...others.map(
+            (entry) {
+              final otherIndex = entry.key;
+              final c = entry.value;
+              return ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: c.category.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(c.category.icon, color: c.category.color, size: 20),
+                ),
+                title: Text(
+                  c.name,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  '${_fmt(c.price)} ₽',
+                  style: const TextStyle(color: AppTheme.accent),
+                ),
+                trailing: const Icon(Icons.swap_horiz, color: AppTheme.primary),
+                onTap: () {
+                  provider.swapComparePositions(index, otherIndex);
+                  Navigator.pop(context);
+                },
+              );
+            },
           ),
           const SizedBox(height: 16),
         ],

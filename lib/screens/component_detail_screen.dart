@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../models/component.dart';
-import '../data/components.dart';
 import '../providers/app_provider.dart';
 import '../theme.dart';
 
@@ -12,7 +11,9 @@ class ComponentDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final component = findComponentById(componentId);
+    // findComponentById is accessible via provider
+    final provider = context.read<AppProvider>();
+    final component = provider.findById(componentId);
     if (component == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Ошибка')),
@@ -26,6 +27,80 @@ class ComponentDetailScreen extends StatelessWidget {
 class _ComponentDetailView extends StatelessWidget {
   final Component component;
   const _ComponentDetailView({required this.component});
+
+  void _showAddedToCompareSnackbar(BuildContext context) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF0D2137),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+        duration: const Duration(seconds: 3),
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(component.category.icon,
+                  color: AppTheme.accent, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Добавлено к сравнению',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    component.name,
+                    style: const TextStyle(
+                      color: Color(0xFF8BA8BF),
+                      fontSize: 11,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'Сравнить →',
+          textColor: AppTheme.accent,
+          onPressed: () => context.push('/compare'),
+        ),
+      ),
+    );
+  }
+
+  void _showRemovedFromCompareSnackbar(BuildContext context) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF2D2D2D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+        duration: const Duration(seconds: 2),
+        content: const Text(
+          'Убрано из сравнения',
+          style: TextStyle(color: Colors.white, fontSize: 13),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,20 +130,26 @@ class _ComponentDetailView extends StatelessWidget {
                 onPressed: () {
                   if (inCompare) {
                     provider.removeFromCompare(component.id);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Убрано из сравнения')),
-                    );
+                    _showRemovedFromCompareSnackbar(context);
                   } else {
-                    provider.addToCompare(component);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Добавлено в сравнение'),
-                        action: SnackBarAction(
-                          label: 'Сравнить',
-                          onPressed: () => context.push('/compare'),
+                    final added = provider.addToCompare(component);
+                    if (added) {
+                      _showAddedToCompareSnackbar(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: const Color(0xFF0D2137),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          margin: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                          content: const Text(
+                            'В сравнении уже 3 товара',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    }
                   }
                 },
               ),
@@ -170,7 +251,6 @@ class _ComponentDetailView extends StatelessWidget {
                             ),
                           ),
                           const Spacer(),
-                          // Key specs chips
                           Wrap(
                             spacing: 4,
                             children: component.keySpecs
@@ -228,7 +308,8 @@ class _ComponentDetailView extends StatelessWidget {
                                     color: AppTheme.chip,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                        color: AppTheme.primary.withOpacity(0.2)),
+                                        color: AppTheme.primary
+                                            .withOpacity(0.2)),
                                   ),
                                   child: Text(
                                     s,
@@ -368,8 +449,26 @@ class _ComponentDetailView extends StatelessWidget {
                 onPressed: () {
                   if (inCompare) {
                     provider.removeFromCompare(component.id);
+                    _showRemovedFromCompareSnackbar(context);
                   } else {
-                    provider.addToCompare(component);
+                    final added = provider.addToCompare(component);
+                    if (added) {
+                      _showAddedToCompareSnackbar(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: const Color(0xFF0D2137),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          margin: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                          content: const Text(
+                            'В сравнении уже 3 товара',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      );
+                    }
                   }
                 },
               ),

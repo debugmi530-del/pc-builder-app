@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../models/component.dart';
 import '../providers/app_provider.dart';
@@ -13,6 +14,95 @@ class ComponentCard extends StatelessWidget {
     required this.component,
     required this.onTap,
   });
+
+  void _onCompareTap(BuildContext context, AppProvider provider, bool inCompare) {
+    if (inCompare) {
+      provider.removeFromCompare(component.id);
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF2D2D2D),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+          duration: const Duration(seconds: 2),
+          content: const Text(
+            'Убрано из сравнения',
+            style: TextStyle(color: Colors.white, fontSize: 13),
+          ),
+        ),
+      );
+    } else {
+      final added = provider.addToCompare(component);
+      ScaffoldMessenger.of(context).clearSnackBars();
+      if (added) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF0D2137),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+            duration: const Duration(seconds: 3),
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(component.category.icon,
+                      color: AppTheme.accent, size: 16),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Добавлено к сравнению',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        component.name,
+                        style: const TextStyle(
+                            color: Color(0xFF8BA8BF), fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            action: SnackBarAction(
+              label: 'Сравнить →',
+              textColor: AppTheme.accent,
+              onPressed: () => context.push('/compare'),
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF0D2137),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+            content: const Text(
+              'В сравнении уже 3 товара',
+              style: TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +126,7 @@ class ComponentCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Icon/Image placeholder
+              // Icon placeholder
               Container(
                 width: 70,
                 height: 70,
@@ -64,11 +154,8 @@ class ComponentCard extends StatelessWidget {
                             color: AppTheme.success,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.check,
-                            size: 10,
-                            color: Colors.white,
-                          ),
+                          child: const Icon(Icons.check,
+                              size: 10, color: Colors.white),
                         ),
                       ),
                   ],
@@ -102,8 +189,6 @@ class ComponentCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-
-                    // Key spec chips
                     Wrap(
                       spacing: 4,
                       runSpacing: 4,
@@ -126,9 +211,7 @@ class ComponentCard extends StatelessWidget {
                         );
                       }).toList(),
                     ),
-
                     const SizedBox(height: 8),
-
                     Row(
                       children: [
                         Text(
@@ -143,13 +226,8 @@ class ComponentCard extends StatelessWidget {
 
                         // Compare button
                         GestureDetector(
-                          onTap: () {
-                            if (inCompare) {
-                              provider.removeFromCompare(component.id);
-                            } else {
-                              provider.addToCompare(component);
-                            }
-                          },
+                          onTap: () =>
+                              _onCompareTap(context, provider, inCompare),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 5),
@@ -194,7 +272,9 @@ class ComponentCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: inBuild ? AppTheme.success : AppTheme.accent,
+                              color: inBuild
+                                  ? AppTheme.success
+                                  : AppTheme.accent,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(

@@ -17,8 +17,6 @@ class AppProvider extends ChangeNotifier {
 
   // ── Comparison ──
   List<Component> _compareComponents = [];
-  PcBuild? _compareBuild1;
-  PcBuild? _compareBuild2;
 
   // ── Filters & Search ──
   String _searchQuery = '';
@@ -28,8 +26,6 @@ class AppProvider extends ChangeNotifier {
   PcBuild get currentBuild => _currentBuild;
   List<PcBuild> get savedBuilds => _savedBuilds;
   List<Component> get compareComponents => _compareComponents;
-  PcBuild? get compareBuild1 => _compareBuild1;
-  PcBuild? get compareBuild2 => _compareBuild2;
   String get searchQuery => _searchQuery;
   Map<String, Set<String>> get activeFilters => _activeFilters;
   String get sortBy => _sortBy;
@@ -117,28 +113,24 @@ class AppProvider extends ChangeNotifier {
     final pcCase = components[ComponentCategory.pcCase];
     final cooling = components[ComponentCategory.cooling];
 
-    // CPU <-> Motherboard socket
     if (cpu != null && mb != null) {
       if (cpu.socket != mb.socket) {
         errors.add('Процессор ${cpu.brand} ${cpu.model} (${cpu.socket}) несовместим с платой ${mb.brand} ${mb.model} (${mb.socket})');
       }
     }
 
-    // RAM type <-> Motherboard
     if (ram != null && mb != null) {
       if (mb.memoryTypes.isNotEmpty && !mb.memoryTypes.contains(ram.memoryType)) {
         errors.add('Память ${ram.brand} ${ram.model} (${ram.memoryType}) несовместима с платой ${mb.brand} ${mb.model}');
       }
     }
 
-    // CPU <-> RAM (DDR type matching)
     if (cpu != null && ram != null) {
       if (cpu.memoryTypes.isNotEmpty && !cpu.memoryTypes.contains(ram.memoryType)) {
         warnings.add('Процессор ${cpu.model} поддерживает ${cpu.memoryTypes.join('/')}, установлена ${ram.memoryType}');
       }
     }
 
-    // Cooler <-> CPU socket
     if (cooling != null && cpu != null && cpu.socket != null) {
       if (cooling.supportedSockets.isNotEmpty &&
           !cooling.supportedSockets.contains(cpu.socket)) {
@@ -146,7 +138,6 @@ class AppProvider extends ChangeNotifier {
       }
     }
 
-    // Case <-> Motherboard form factor
     if (pcCase != null && mb != null) {
       if (mb.formFactor != null &&
           pcCase.supportedFormFactors.isNotEmpty &&
@@ -155,11 +146,10 @@ class AppProvider extends ChangeNotifier {
       }
     }
 
-    // Power budget
     int totalTdp = 0;
     if (cpu != null) totalTdp += cpu.tdp ?? 0;
     if (gpu != null) totalTdp += gpu.powerDraw ?? 0;
-    totalTdp += 100; // base system
+    totalTdp += 100;
 
     int requiredPower = (totalTdp * 1.3).round();
 
@@ -171,7 +161,6 @@ class AppProvider extends ChangeNotifier {
       }
     }
 
-    // Cooler TDP warning
     if (cooling != null && cpu != null) {
       final coolerTdp = cooling.tdp ?? 0;
       final cpuTdp = cpu.tdp ?? 0;
@@ -191,13 +180,13 @@ class AppProvider extends ChangeNotifier {
 
   // ─── Compare Components ───
 
-  void addToCompare(Component component) {
-    if (_compareComponents.length >= 3) {
-      _compareComponents = [_compareComponents[1], _compareComponents[2], component];
-    } else {
-      _compareComponents = [..._compareComponents, component];
-    }
+  /// Возвращает true если добавлено, false если уже 3 товара
+  bool addToCompare(Component component) {
+    if (_compareComponents.length >= 3) return false;
+    if (_compareComponents.any((c) => c.id == component.id)) return false;
+    _compareComponents = [..._compareComponents, component];
     notifyListeners();
+    return true;
   }
 
   void removeFromCompare(String id) {
@@ -205,11 +194,14 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void swapCompare(int index, Component newComponent) {
+  /// Меняет местами два слота в списке сравнения
+  void swapComparePositions(int index1, int index2) {
+    if (index1 >= _compareComponents.length ||
+        index2 >= _compareComponents.length) return;
     final updated = List<Component>.from(_compareComponents);
-    if (index < updated.length) {
-      updated[index] = newComponent;
-    }
+    final tmp = updated[index1];
+    updated[index1] = updated[index2];
+    updated[index2] = tmp;
     _compareComponents = updated;
     notifyListeners();
   }
@@ -221,16 +213,9 @@ class AppProvider extends ChangeNotifier {
 
   bool isInCompare(String id) => _compareComponents.any((c) => c.id == id);
 
-  // Compare builds
-  void setCompareBuild1(PcBuild build) {
-    _compareBuild1 = build;
-    notifyListeners();
-  }
+  // ─── Lookup ───
 
-  void setCompareBuild2(PcBuild build) {
-    _compareBuild2 = build;
-    notifyListeners();
-  }
+  Component? findById(String id) => findComponentById(id);
 
   // ─── Filters & Sorting ───
 
@@ -269,7 +254,6 @@ class AppProvider extends ChangeNotifier {
   List<Component> filteredComponents(ComponentCategory category) {
     var list = getByCategory(category);
 
-    // Apply search
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       list = list.where((c) =>
@@ -280,7 +264,6 @@ class AppProvider extends ChangeNotifier {
       ).toList();
     }
 
-    // Apply filters
     for (final entry in _activeFilters.entries) {
       final key = entry.key;
       final values = entry.value;
@@ -290,7 +273,6 @@ class AppProvider extends ChangeNotifier {
       }).toList();
     }
 
-    // Sort
     switch (_sortBy) {
       case 'price_asc':
         list.sort((a, b) => a.price.compareTo(b.price));
@@ -325,14 +307,12 @@ class AppProvider extends ChangeNotifier {
   Future<void> _save() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Save current build component IDs
       final buildMap = _currentBuild.components.map(
         (k, v) => MapEntry(k.key, v.id),
       );
       await prefs.setString('current_build_name', _currentBuild.name);
       await prefs.setString('current_build', jsonEncode(buildMap));
 
-      // Save saved builds
       final buildsJson = _savedBuilds.map((b) => jsonEncode(b.toJson())).toList();
       await prefs.setStringList('saved_builds', buildsJson);
     } catch (e) {
@@ -364,7 +344,6 @@ class AppProvider extends ChangeNotifier {
         );
       }
 
-      // Load saved builds
       final buildsJson = prefs.getStringList('saved_builds') ?? [];
       _savedBuilds = buildsJson.map((json) {
         final data = jsonDecode(json) as Map<String, dynamic>;
