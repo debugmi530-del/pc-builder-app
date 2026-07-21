@@ -11,9 +11,6 @@ on:
         description: 'Release notes'
         default: 'New build'
 
-env:
-  FLUTTER_VERSION: '3.44.7'
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,12 +32,14 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons
 
       - name: Generate keystore
         run: |
