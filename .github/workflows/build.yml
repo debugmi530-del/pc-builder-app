@@ -57,11 +57,11 @@ jobs:
 
       - name: Configure signing
         run: |
-          cat > android/key.properties << 'EOF'
+          cat > android/key.properties << EOF
           storePassword=pcbuilder123
           keyPassword=pcbuilder123
           keyAlias=pc_builder_key
-          storeFile=../../../keystore.jks
+          storeFile=$GITHUB_WORKSPACE/keystore.jks
           EOF
 
       - name: Get version
