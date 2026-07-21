@@ -60,8 +60,8 @@ class _BuildComparisonView extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                _BuildHeader(build: build1, isCheaper: cheaper == 0),
-                _BuildHeader(build: build2, isCheaper: cheaper == 1),
+                _BuildHeader(pcBuild: build1, isCheaper: cheaper == 0),
+                _BuildHeader(pcBuild: build2, isCheaper: cheaper == 1),
               ],
             ),
           ),
@@ -191,13 +191,13 @@ class _BuildComparisonView extends StatelessWidget {
                 const SizedBox(width: 100),
                 Expanded(
                   child: _PriceTotal(
-                    build: build1,
+                    pcBuild: build1,
                     isCheaper: cheaper == 0,
                   ),
                 ),
                 Expanded(
                   child: _PriceTotal(
-                    build: build2,
+                    pcBuild: build2,
                     isCheaper: cheaper == 1,
                   ),
                 ),
@@ -217,10 +217,10 @@ class _BuildComparisonView extends StatelessWidget {
 }
 
 class _BuildHeader extends StatelessWidget {
-  final PcBuild build;
+  final PcBuild pcBuild;
   final bool isCheaper;
 
-  const _BuildHeader({required this.build, required this.isCheaper});
+  const _BuildHeader({required this.pcBuild, required this.isCheaper});
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +241,7 @@ class _BuildHeader extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              build.name,
+              pcBuild.name,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -253,7 +253,7 @@ class _BuildHeader extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${build.components.length} комп.',
+              '${pcBuild.components.length} комп.',
               style: const TextStyle(
                   fontSize: 11, color: AppTheme.textSecondary),
             ),
@@ -349,10 +349,10 @@ class _ComponentCell extends StatelessWidget {
 }
 
 class _PriceTotal extends StatelessWidget {
-  final PcBuild build;
+  final PcBuild pcBuild;
   final bool isCheaper;
 
-  const _PriceTotal({required this.build, required this.isCheaper});
+  const _PriceTotal({required this.pcBuild, required this.isCheaper});
 
   @override
   Widget build(BuildContext context) {
@@ -365,7 +365,7 @@ class _PriceTotal extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          '${_fmt(build.totalPrice)} ₽',
+          '${_fmt(pcBuild.totalPrice)} ₽',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w800,
