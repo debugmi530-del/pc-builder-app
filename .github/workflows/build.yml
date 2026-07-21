@@ -12,7 +12,7 @@ on:
         default: 'New build'
 
 env:
-  FLUTTER_VERSION: '3.32.0'
+  FLUTTER_VERSION: '3.44.7'
 
 jobs:
   build:
@@ -57,12 +57,8 @@ jobs:
 
       - name: Configure signing
         run: |
-          cat > android/key.properties <<EOF
-storePassword=pcbuilder123
-keyPassword=pcbuilder123
-keyAlias=pc_builder_key
-storeFile=$GITHUB_WORKSPACE/keystore.jks
-EOF
+          printf 'storePassword=pcbuilder123\nkeyPassword=pcbuilder123\nkeyAlias=pc_builder_key\nstoreFile=%s/keystore.jks\n' "$GITHUB_WORKSPACE" \
+            > android/key.properties
 
       - name: Get version
         id: version
@@ -94,11 +90,8 @@ EOF
       - name: Rename APKs
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          BUILD=${{ steps.version.outputs.build_number }}
-
           mv build/app/outputs/flutter-apk/app-release.apk \
             build/app/outputs/flutter-apk/PCBuilder-v${VERSION}-universal.apk
-
           for abi in arm64-v8a armeabi-v7a x86_64; do
             if [ -f "build/app/outputs/flutter-apk/app-${abi}-release.apk" ]; then
               mv "build/app/outputs/flutter-apk/app-${abi}-release.apk" \
@@ -107,10 +100,9 @@ EOF
           done
 
       - name: Create release notes
-        id: release_notes
         run: |
-          cat > release_notes.md << 'EOF'
-          ## 🖥️ PC Builder — Android APK
+          cat > release_notes.md << 'NOTES'
+          ## PC Builder — Android APK
 
           ### Что нового
           - Каталог комплектующих: CPU, GPU, RAM, Накопители, БП, Матплаты, Корпуса, Охлаждение
@@ -123,16 +115,15 @@ EOF
 
           ### Установка
           1. Скачайте APK для вашей архитектуры:
-             - `arm64-v8a` — большинство современных Android (рекомендуется)
-             - `armeabi-v7a` — старые устройства
-             - `x86_64` — эмуляторы
-             - `universal` — если не знаете какой выбрать
+             - arm64-v8a — большинство современных Android (рекомендуется)
+             - armeabi-v7a — старые устройства
+             - x86_64 — эмуляторы
+             - universal — если не знаете какой выбрать
           2. Разрешите установку из неизвестных источников
           3. Установите APK
-
-          **Build:** ${{ steps.version.outputs.build_number }}
-          **Commit:** ${{ github.sha }}
-          EOF
+          NOTES
+          echo "**Build:** ${{ steps.version.outputs.build_number }}" >> release_notes.md
+          echo "**Commit:** ${{ github.sha }}" >> release_notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -140,8 +131,7 @@ EOF
           tag_name: ${{ steps.version.outputs.tag_name }}
           name: "PC Builder ${{ steps.version.outputs.version }} (build ${{ steps.version.outputs.build_number }})"
           body_path: release_notes.md
-          files: |
-            build/app/outputs/flutter-apk/PCBuilder-*.apk
+          files: build/app/outputs/flutter-apk/PCBuilder-*.apk
           draft: false
           prerelease: false
           generate_release_notes: false
