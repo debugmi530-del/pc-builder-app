@@ -57,12 +57,12 @@ jobs:
 
       - name: Configure signing
         run: |
-          cat > android/key.properties << EOF
-          storePassword=pcbuilder123
-          keyPassword=pcbuilder123
-          keyAlias=pc_builder_key
-          storeFile=$GITHUB_WORKSPACE/keystore.jks
-          EOF
+          cat > android/key.properties <<EOF
+storePassword=pcbuilder123
+keyPassword=pcbuilder123
+keyAlias=pc_builder_key
+storeFile=$GITHUB_WORKSPACE/keystore.jks
+EOF
 
       - name: Get version
         id: version
@@ -95,14 +95,14 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.version }}
           BUILD=${{ steps.version.outputs.build_number }}
-          
-          mv build/flutter/outputs/flutter-apk/app-release.apk \
-            build/flutter/outputs/flutter-apk/PCBuilder-v${VERSION}-universal.apk
-          
+
+          mv build/app/outputs/flutter-apk/app-release.apk \
+            build/app/outputs/flutter-apk/PCBuilder-v${VERSION}-universal.apk
+
           for abi in arm64-v8a armeabi-v7a x86_64; do
-            if [ -f "build/flutter/outputs/flutter-apk/app-${abi}-release.apk" ]; then
-              mv "build/flutter/outputs/flutter-apk/app-${abi}-release.apk" \
-                "build/flutter/outputs/flutter-apk/PCBuilder-v${VERSION}-${abi}.apk"
+            if [ -f "build/app/outputs/flutter-apk/app-${abi}-release.apk" ]; then
+              mv "build/app/outputs/flutter-apk/app-${abi}-release.apk" \
+                "build/app/outputs/flutter-apk/PCBuilder-v${VERSION}-${abi}.apk"
             fi
           done
 
@@ -111,7 +111,7 @@ jobs:
         run: |
           cat > release_notes.md << 'EOF'
           ## 🖥️ PC Builder — Android APK
-          
+
           ### Что нового
           - Каталог комплектующих: CPU, GPU, RAM, Накопители, БП, Матплаты, Корпуса, Охлаждение
           - 4 реальных комплектующих в каждой категории с полными характеристиками
@@ -120,7 +120,7 @@ jobs:
           - Поиск по всему каталогу
           - Сохранение и загрузка сборок
           - Работает полностью офлайн
-          
+
           ### Установка
           1. Скачайте APK для вашей архитектуры:
              - `arm64-v8a` — большинство современных Android (рекомендуется)
@@ -129,7 +129,7 @@ jobs:
              - `universal` — если не знаете какой выбрать
           2. Разрешите установку из неизвестных источников
           3. Установите APK
-          
+
           **Build:** ${{ steps.version.outputs.build_number }}
           **Commit:** ${{ github.sha }}
           EOF
@@ -141,7 +141,7 @@ jobs:
           name: "PC Builder ${{ steps.version.outputs.version }} (build ${{ steps.version.outputs.build_number }})"
           body_path: release_notes.md
           files: |
-            build/flutter/outputs/flutter-apk/PCBuilder-*.apk
+            build/app/outputs/flutter-apk/PCBuilder-*.apk
           draft: false
           prerelease: false
           generate_release_notes: false
@@ -152,5 +152,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apks-build-${{ steps.version.outputs.build_number }}
-          path: build/flutter/outputs/flutter-apk/PCBuilder-*.apk
+          path: build/app/outputs/flutter-apk/PCBuilder-*.apk
           retention-days: 30
