@@ -1,0 +1,156 @@
+name: Build & Release APK
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: 'Release notes'
+        default: 'New build'
+
+env:
+  FLUTTER_VERSION: '3.32.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate keystore
+        run: |
+          keytool -genkeypair \
+            -alias pc_builder_key \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -keystore keystore.jks \
+            -storepass pcbuilder123 \
+            -keypass pcbuilder123 \
+            -dname "CN=PC Builder, OU=App, O=PC Builder, L=City, ST=State, C=RU" \
+            -noprompt
+
+      - name: Configure signing
+        run: |
+          cat > android/key.properties << 'EOF'
+          storePassword=pcbuilder123
+          keyPassword=pcbuilder123
+          keyAlias=pc_builder_key
+          storeFile=../../../keystore.jks
+          EOF
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //')
+          BUILD=$(git rev-list --count HEAD)
+          echo "version=${VERSION%+*}" >> $GITHUB_OUTPUT
+          echo "build_number=${BUILD}" >> $GITHUB_OUTPUT
+          echo "full_version=${VERSION%+*}+${BUILD}" >> $GITHUB_OUTPUT
+          echo "tag_name=v${VERSION%+*}-build${BUILD}" >> $GITHUB_OUTPUT
+
+      - name: Update version in pubspec.yaml
+        run: |
+          sed -i "s/^version: .*/version: ${{ steps.version.outputs.full_version }}/" pubspec.yaml
+
+      - name: Build APK (all ABIs)
+        run: |
+          flutter build apk \
+            --release \
+            --split-per-abi \
+            --dart-define=APP_ENV=production
+
+      - name: Build APK (universal)
+        run: |
+          flutter build apk \
+            --release \
+            --dart-define=APP_ENV=production
+
+      - name: Rename APKs
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          BUILD=${{ steps.version.outputs.build_number }}
+          
+          mv build/flutter/outputs/flutter-apk/app-release.apk \
+            build/flutter/outputs/flutter-apk/PCBuilder-v${VERSION}-universal.apk
+          
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            if [ -f "build/flutter/outputs/flutter-apk/app-${abi}-release.apk" ]; then
+              mv "build/flutter/outputs/flutter-apk/app-${abi}-release.apk" \
+                "build/flutter/outputs/flutter-apk/PCBuilder-v${VERSION}-${abi}.apk"
+            fi
+          done
+
+      - name: Create release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## 🖥️ PC Builder — Android APK
+          
+          ### Что нового
+          - Каталог комплектующих: CPU, GPU, RAM, Накопители, БП, Матплаты, Корпуса, Охлаждение
+          - 4 реальных комплектующих в каждой категории с полными характеристиками
+          - Сборщик ПК с проверкой совместимости
+          - Сравнение комплектующих (до 3 штук, подсветка отличий)
+          - Поиск по всему каталогу
+          - Сохранение и загрузка сборок
+          - Работает полностью офлайн
+          
+          ### Установка
+          1. Скачайте APK для вашей архитектуры:
+             - `arm64-v8a` — большинство современных Android (рекомендуется)
+             - `armeabi-v7a` — старые устройства
+             - `x86_64` — эмуляторы
+             - `universal` — если не знаете какой выбрать
+          2. Разрешите установку из неизвестных источников
+          3. Установите APK
+          
+          **Build:** ${{ steps.version.outputs.build_number }}
+          **Commit:** ${{ github.sha }}
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          name: "PC Builder ${{ steps.version.outputs.version }} (build ${{ steps.version.outputs.build_number }})"
+          body_path: release_notes.md
+          files: |
+            build/flutter/outputs/flutter-apk/PCBuilder-*.apk
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload APKs as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apks-build-${{ steps.version.outputs.build_number }}
+          path: build/flutter/outputs/flutter-apk/PCBuilder-*.apk
+          retention-days: 30
